@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description"
+        content="CollectionLoRA: a multi-teacher on-policy distillation framework that consolidates 50 effect LoRAs and few-step generation into a single LoRA.">
+  <meta name="keywords" content="CollectionLoRA, LoRA, diffusion model, multi-teacher distillation, customized image editing, few-step generation">
+  <title>CollectionLoRA: Collecting 50 Effects in 1 LoRA</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/site.css">
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+</head>
+<body>
+
+<!-- ============== TITLE & AUTHORS ============== -->
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+
+          <h1 class="title is-1 publication-title">CollectionLoRA: Collecting 50 Effects in 1 LoRA via Multi-Teacher On-Policy Distillation</h1>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">Fangtai Wu<sup>1,2</sup>,</span>
+            <span class="author-block">Hailong Guo<sup>2</sup>,</span>
+            <span class="author-block">Shijie Huang<sup>2</sup>,</span>
+            <span class="author-block">Jiayi Song<sup>2,3</sup>,</span>
+            <span class="author-block">Yubo Huang<sup>2</sup>,</span>
+            <br>
+            <span class="author-block">Mushui Liu<sup>1</sup>,</span>
+            <span class="author-block">Zhao Wang<sup>1</sup>,</span>
+            <span class="author-block">Yunlong Yu<sup>1*</sup>,</span>
+            <span class="author-block">Jiaming Liu<sup>2*†</sup>,</span>
+            <span class="author-block">Ruihua Huang<sup>2</sup></span>
+          </div>
+
+          <div class="is-size-6 publication-authors" style="margin-top: 0.5rem;">
+            <span class="author-block"><sup>1</sup>Zhejiang University</span>&nbsp;&nbsp;
+            <span class="author-block"><sup>2</sup>Qwen Applications, Alibaba</span>&nbsp;&nbsp;
+            <span class="author-block"><sup>3</sup>Xi'an Jiaotong University</span>
+          </div>
+
+          <p class="is-size-7 has-text-grey" style="margin-top: 0.5rem;">
+            <sup>*</sup> Corresponding authors&nbsp;|&nbsp;<sup>†</sup> Project leader
+          </p>
+
+          <div class="publication-links">
+            <span class="link-block">
+              <a href="https://arxiv.org/abs/TBD" target="_blank" rel="noopener"
+                 class="external-link button is-normal is-rounded">
+                <span class="icon"><i class="ai ai-arxiv"></i></span>
+                <span>Paper</span>
+              </a>
+            </span>
+            <span class="link-block">
+              <a href="https://github.com/TBD/CollectionLoRA" target="_blank" rel="noopener"
+                 class="external-link button is-normal is-rounded">
+                <span class="icon"><i class="fab fa-github"></i></span>
+                <span>Code</span>
+              </a>
+            </span>
+            <span class="link-block">
+              <a href="https://huggingface.co/TBD" target="_blank" rel="noopener"
+                 class="external-link button is-normal is-rounded">
+                <span class="icon" aria-hidden="true">&#x1F917;</span>
+                <span>Model</span>
+              </a>
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== TEASER ============== -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop has-text-centered">
+      <div class="publication-image">
+        <img src="./static/figures/zip_teaser.png"
+             alt="CollectionLoRA distills many effect LoRAs and few-step generation into a single LoRA.">
+      </div>
+      <p class="figure-caption has-text-centered">
+        We propose <b>CollectionLoRA</b>, a multi-teacher on-policy distillation framework that
+        consolidates diverse effects and few-step inference capabilities into a single LoRA.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== ABSTRACT ============== -->
+<section class="section hero is-light">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Abstract</h2>
+          <div class="content has-text-justified">
+            <p>
+              Customized image editing equips pre-trained diffusion models with specific visual
+              effects through Low-Rank Adaptation (LoRA). As the number of desired effects grows,
+              storing and dynamically loading numerous effect LoRAs becomes prohibitively
+              expensive at deployment, and cascading them with acceleration LoRAs causes severe
+              parameter interference, leading to concept bleeding and style degradation.
+            </p>
+            <p>
+              We propose <b>CollectionLoRA</b>, a multi-teacher on-policy distillation framework
+              that distills up to 50 different effect LoRAs together with few-step generation
+              capabilities into a single LoRA, fundamentally resolving feature interference
+              while significantly reducing deployment overhead. The method introduces
+              (i) a <b>Probabilistic Dual-Stream Routing</b> mechanism that randomly switches
+              between data sources to enhance generalization on unseen scenarios;
+              (ii) an <b>Asymmetric Orthogonal Prompting</b> strategy that achieves concept
+              isolation in the prompt space; and
+              (iii) a <b>Coarse-to-Fine Distillation Objective</b> that mitigates the
+              distribution gap between the teacher and student models. Extensive experiments
+              show that CollectionLoRA matches or surpasses independently trained teachers in
+              concept fidelity at a fraction of the deployment cost.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== MOTIVATION ============== -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Motivation</h2>
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <div class="publication-image">
+            <img src="./static/figures/zip_intro.png"
+                 alt="Conventional multi-LoRA pipeline vs. CollectionLoRA.">
+          </div>
+          <p class="figure-caption">
+            <b>Conventional pipeline</b> (left): each effect is trained as a separate LoRA and
+            cascaded with an acceleration LoRA at inference, incurring storage cost, routing
+            latency, and parameter interference.
+            <b>CollectionLoRA</b> (right): a single distilled LoRA absorbs all effects together
+            with the acceleration prior, eliminating runtime routing and parameter conflicts.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== METHOD OVERVIEW ============== -->
+<section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container is-fullhd">
+      <h2 class="title is-3 has-text-centered">Method</h2>
+
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-full">
+          <div class="publication-image publication-image--wide">
+            <img src="./static/figures/framework.png"
+                 alt="Overall framework of CollectionLoRA.">
+          </div>
+          <p class="figure-caption">
+            <b>Overall framework.</b> (a) PDSR routes each batch into the effect or general
+            stream with probability $p_{\text{switch}}$. (b) The effect stream applies AOP and
+            C2F-DO: trajectory anchoring stabilizes the cold start, while target / backward
+            simulation restore detail and global distribution. (c) The general stream performs
+            standard DMD on unlabeled images to prevent catastrophic forgetting.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== C2F-DO ILLUSTRATION ============== -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Why Vanilla DMD Fails &mdash; and How C2F-DO Fixes It</h2>
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <div class="publication-image">
+            <img src="./static/figures/zip_method4_4.png"
+                 alt="Effectiveness of C2F-DO: from DMD collapse to detail recovery.">
+          </div>
+          <p class="figure-caption">
+            (a) Standard DMD collapses to an intermediate manifold under multi-teacher
+            distillation. (b) Trajectory anchoring alone over-smooths textures; adding target
+            simulation restores realistic high-frequency detail.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== QUANTITATIVE RESULTS ============== -->
+<section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Quantitative Results</h2>
+      <p class="subtitle is-6 has-text-centered">
+        50 effects in one LoRA, 8&nbsp;NFE, evaluated on EffectBench.
+      </p>
+
+      <div class="columns is-centered">
+        <div class="column is-four-fifths">
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Method</th>
+                  <th>CLIP &uarr;</th>
+                  <th>DreamSim &darr;</th>
+                  <th>DINO &uarr;</th>
+                  <th>VSA &uarr;</th>
+                  <th>EditReward &uarr;</th>
+                  <th>BCR &darr;</th>
+                  <th>NFE &darr;</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td rowspan="2" class="row-label">Single effect</td>
+                  <td class="row-label">Base</td>
+                  <td>0.726</td><td>0.434</td><td>0.611</td><td>4.075</td><td>1.007</td><td>0.141</td><td>40&times;2</td>
+                </tr>
+                <tr>
+                  <td class="row-label">Base + Lightning</td>
+                  <td>0.717</td><td>0.441</td><td><b>0.612</b></td><td>3.901</td><td>0.986</td><td>0.168</td><td>8</td>
+                </tr>
+                <tr>
+                  <td rowspan="2" class="row-label">50 effects in 1</td>
+                  <td class="row-label">FM + Lightning</td>
+                  <td>0.703</td><td>0.468</td><td>0.611</td><td>4.150</td><td>0.929</td><td>0.217</td><td>8</td>
+                </tr>
+                <tr class="highlight">
+                  <td class="row-label"><b>Ours</b></td>
+                  <td><b>0.727</b></td><td><b>0.425</b></td><td>0.600</td><td><b>4.380</b></td><td><b>1.052</b></td><td><b>0.087</b></td><td><b>8</b></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="figure-caption">
+            With a single LoRA at 8&nbsp;NFE, CollectionLoRA outperforms per-effect Base teachers
+            on most metrics and substantially reduces Bad Case Ratio (BCR).
+          </p>
+        </div>
+      </div>
+
+      <h3 class="title is-5 has-text-centered" style="margin-top: 2.25rem;">LoRA Scaling (CLIP &uarr;)</h3>
+      <div class="columns is-centered">
+        <div class="column is-four-fifths">
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th>10 LoRAs</th>
+                  <th>20 LoRAs</th>
+                  <th>50 LoRAs</th>
+                  <th>100 LoRAs</th>
+                  <th>180 LoRAs</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="row-label">Base</td>
+                  <td>0.735</td><td>0.724</td><td>0.726</td><td><b>0.723</b></td><td><b>0.724</b></td>
+                </tr>
+                <tr>
+                  <td class="row-label">Base + Lightning</td>
+                  <td>0.716</td><td>0.712</td><td>0.717</td><td>0.717</td><td>0.722</td>
+                </tr>
+                <tr>
+                  <td class="row-label">All-in-1 (FM) + Lightning</td>
+                  <td>0.725</td><td>0.722</td><td>0.703</td><td>0.694</td><td>0.689</td>
+                </tr>
+                <tr class="highlight">
+                  <td class="row-label"><b>All-in-1 (Ours)</b></td>
+                  <td><b>0.741</b></td><td><b>0.723</b></td><td><b>0.727</b></td><td>0.716</td><td>0.709</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="figure-caption">
+            Our unified model scales to 180 effects while staying competitive with
+            <i>per-effect</i> baselines, dramatically reducing storage and routing cost.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="title is-5 has-text-centered" style="margin-top: 2.25rem;">Deployment Cost</h3>
+      <div class="columns is-centered">
+        <div class="column is-four-fifths">
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Method</th>
+                  <th>10</th><th>20</th><th>50</th><th>100</th><th>150</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td rowspan="2" class="row-label">Routing latency</td>
+                  <td class="row-label">Baseline</td>
+                  <td>6.88s</td><td>6.95s</td><td>7.09s</td><td>7.22s</td><td>9.18s</td>
+                </tr>
+                <tr class="highlight">
+                  <td class="row-label"><b>Ours</b></td>
+                  <td><b>0s</b></td><td><b>0s</b></td><td><b>0s</b></td><td>7.22s</td><td>9.18s</td>
+                </tr>
+                <tr>
+                  <td rowspan="2" class="row-label">Routing accuracy</td>
+                  <td class="row-label">Baseline</td>
+                  <td>99%</td><td>94%</td><td>87%</td><td>85%</td><td>76%</td>
+                </tr>
+                <tr class="highlight">
+                  <td class="row-label"><b>Ours</b></td>
+                  <td><b>100%</b></td><td><b>100%</b></td><td><b>100%</b></td><td><b>90%</b></td><td><b>82%</b></td>
+                </tr>
+                <tr>
+                  <td rowspan="2" class="row-label">Storage</td>
+                  <td class="row-label">Baseline</td>
+                  <td>2.2G&times;10</td><td>2.2G&times;20</td><td>2.2G&times;50</td><td>2.2G&times;100</td><td>2.2G&times;150</td>
+                </tr>
+                <tr class="highlight">
+                  <td class="row-label"><b>Ours</b></td>
+                  <td><b>2.2G</b></td><td><b>2.2G</b></td><td><b>2.2G</b></td><td><b>2.2G&times;2</b></td><td><b>2.2G&times;3</b></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== QUALITATIVE COMPARISON ============== -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Qualitative Comparison</h2>
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <div class="publication-image">
+            <img src="./static/figures/zip_main_compare.png"
+                 alt="Qualitative comparison of CollectionLoRA against baseline methods.">
+          </div>
+          <p class="figure-caption">
+            CollectionLoRA preserves texture detail, style purity, and OOD generalization where
+            cascaded multi-LoRA pipelines exhibit concept bleeding and style drift.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== ZERO-SHOT COMPOSITION ============== -->
+<section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Zero-Shot Effect Composition</h2>
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <div class="publication-image">
+            <img src="./static/figures/zip_AB_Test.png"
+                 alt="Zero-shot effect composition with CollectionLoRA.">
+          </div>
+          <p class="figure-caption">
+            Any two trained effects can be combined at inference time in a single forward
+            pass&mdash;<b>no extra fine-tuning required</b>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== ABLATION ============== -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Ablation Studies</h2>
+
+      <!-- (1) Ablation table -->
+      <div class="columns is-centered">
+        <div class="column is-four-fifths">
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>Exp.</th>
+                  <th>PDSR</th>
+                  <th>AOP</th>
+                  <th>TS</th>
+                  <th>TA-FM</th>
+                  <th>CLIP &uarr;</th>
+                  <th>DreamSim &darr;</th>
+                  <th>DINO &uarr;</th>
+                  <th>VSA &uarr;</th>
+                  <th>EditReward &uarr;</th>
+                  <th>BCR &darr;</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>(1)</td>
+                  <td>&#10003;</td><td></td><td></td><td></td>
+                  <td>0.725</td><td>0.434</td><td>0.514</td><td>2.756</td><td>0.989</td><td>0.378</td>
+                </tr>
+                <tr>
+                  <td>(2)</td>
+                  <td>&#10003;</td><td>&#10003;</td><td></td><td></td>
+                  <td>0.732</td><td>0.427</td><td>0.525</td><td>3.720</td><td>1.008</td><td>0.207</td>
+                </tr>
+                <tr>
+                  <td>(3)</td>
+                  <td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td></td>
+                  <td><b>0.736</b></td><td><b>0.420</b></td><td>0.541</td><td>4.018</td><td>0.979</td><td>0.199</td>
+                </tr>
+                <tr>
+                  <td>(4)</td>
+                  <td></td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td>
+                  <td>0.727</td><td>0.426</td><td>0.590</td><td>4.248</td><td>0.976</td><td>0.108</td>
+                </tr>
+                <tr class="highlight">
+                  <td>(5)</td>
+                  <td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td>
+                  <td>0.727</td><td>0.425</td><td><b>0.600</b></td><td><b>4.380</b></td><td><b>1.052</b></td><td><b>0.087</b></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="figure-caption">
+            <b>Component ablation</b> under the 50-in-1 concurrent setting. &#10003; indicates
+            the module is enabled. Best values per metric are <b>bold</b>. The full configuration
+            (5) achieves the best DINO, VSA, EditReward, and BCR.
+          </p>
+        </div>
+      </div>
+
+      <!-- (2) Compare image -->
+      <div class="columns is-centered has-text-centered" style="margin-top: 1.5rem;">
+        <div class="column is-four-fifths">
+          <div class="publication-image">
+            <img src="./static/figures/zip_ablation_compare.png"
+                 alt="Visual comparison of ablations across the proposed components.">
+          </div>
+          <p class="figure-caption">
+            <b>Qualitative ablation.</b> Removing PDSR, AOP, TS, or TA-FM leads to visible
+            degradation in concept fidelity, texture detail, or style purity, while the full
+            model preserves all of them.
+          </p>
+        </div>
+      </div>
+
+      <!-- (3) Training dynamics image -->
+      <div class="columns is-centered has-text-centered" style="margin-top: 1.5rem;">
+        <div class="column is-four-fifths">
+          <div class="publication-image">
+            <img src="./static/figures/zip_ablation_trainsteps.png"
+                 alt="Qualitative ablation: training dynamics with TA-FM and Target Simulation.">
+          </div>
+          <p class="figure-caption">
+            <b>Training dynamics.</b> Adding TA-FM and target simulation yields more stable
+            convergence and higher fidelity than vanilla DMD.
+          </p>
+        </div>
+      </div>
+
+      <!-- (4) Quantitative training curves -->
+      <div class="columns is-centered" style="margin-top: 1.5rem;">
+        <div class="column is-half has-text-centered">
+          <div class="publication-image">
+            <img src="./static/figures/dreamsim_score_ablation_plot.png"
+                 alt="DreamSim distance during training across ablations.">
+          </div>
+          <p class="figure-caption"><b>Style distance.</b> DreamSim vs. optimization step.</p>
+        </div>
+        <div class="column is-half has-text-centered">
+          <div class="publication-image">
+            <img src="./static/figures/clip_score_ablation_plot.png"
+                 alt="CLIP score during training across ablations.">
+          </div>
+          <p class="figure-caption"><b>Alignment.</b> CLIP score vs. optimization step.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== MORE RESULTS (CAROUSEL) ============== -->
+<section class="hero is-small is-light">
+  <div class="hero-body" style="padding-left: 0; padding-right: 0;">
+    <div class="container is-fluid">
+      <h2 class="title is-3 has-text-centered">More Qualitative Results</h2>
+      <div class="carousel-teaser-container">
+        <div class="carousel-teaser scroll-left">
+          <img src="./static/figures/visual2/zip_supp_v1.png" alt="Supplementary panel 1">
+          <img src="./static/figures/visual2/zip_supp_v2.png" alt="Supplementary panel 2">
+          <img src="./static/figures/visual2/zip_supp_v3_1.png" alt="Supplementary panel 3">
+          <img src="./static/figures/visual2/zip_supp_v4.png" alt="Supplementary panel 4">
+          <img src="./static/figures/visual2/zip_supp_v5.png" alt="Supplementary panel 5">
+          <img src="./static/figures/visual2/zip_supp_v3_2.png" alt="Supplementary panel 6">
+
+          <img src="./static/figures/visual2/zip_supp_v1.png" alt="Supplementary panel 1">
+          <img src="./static/figures/visual2/zip_supp_v2.png" alt="Supplementary panel 2">
+          <img src="./static/figures/visual2/zip_supp_v3_1.png" alt="Supplementary panel 3">
+          <img src="./static/figures/visual2/zip_supp_v4.png" alt="Supplementary panel 4">
+          <img src="./static/figures/visual2/zip_supp_v5.png" alt="Supplementary panel 5">
+          <img src="./static/figures/visual2/zip_supp_v3_2.png" alt="Supplementary panel 6">
+        </div>
+      </div>
+      <p class="figure-caption has-text-centered" style="margin-top: 0.75rem;">
+        Additional qualitative panels covering 50 effects under the same student model.
+        <span class="has-text-grey-light"> &middot; hover to pause</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============== BIBTEX ============== -->
+<section class="section bibtex-block" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title is-3">BibTeX</h2>
+    <pre><code>@misc{wu2026collectionlora,
+  title  = {CollectionLoRA: Collecting 50 Effects in 1 {LoRA} via Multi-Teacher On-Policy Distillation},
+  author = {Wu, Fangtai and Guo, Hailong and Huang, Shijie and Song, Jiayi and
+            Huang, Yubo and Liu, Mushui and Wang, Zhao and Yu, Yunlong and
+            Liu, Jiaming and Huang, Ruihua},
+  year   = {2026}
+}</code></pre>
+  </div>
+</section>
+
+
+<!-- ============== FOOTER ============== -->
+<footer class="footer">
+  <div class="container has-text-centered">
+    <p>
+      Page template adapted from
+      <a href="https://nerfies.github.io/" target="_blank" rel="noopener">Nerfies</a>
+      and the
+      <a href="https://github.com/eliahuhorwitz/Academic-project-page-template"
+         target="_blank" rel="noopener">Academic Project Page Template</a>.
+      Licensed under
+      <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
